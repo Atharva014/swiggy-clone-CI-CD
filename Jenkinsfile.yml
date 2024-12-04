@@ -1,0 +1,80 @@
+pipeline{
+     agent any
+     
+     tools{
+         jdk 'jdk-17'
+         nodejs 'node-16'
+     }
+     environment {
+         SCANNER_HOME=tool 'sonarqube-scanner'
+     }
+     
+     stages {
+         stage('Clean Workspace'){
+             steps{
+                 cleanWs()
+             }
+         }
+         stage('Checkout from Git'){
+             steps{
+                 git branch: 'main', url: 'https://github.com/Atharva014/swiggy-clone-CI-CD.git'
+             }
+         }
+         stage("Sonarqube Analysis "){
+             steps{
+                 withSonarQubeEnv('sonarqube-srv') {
+                     sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Swiggy-CI \
+                     -Dsonar.projectKey=Swiggy-CI '''
+                 }
+             }
+         }
+         stage("Quality Gate"){
+            steps {
+                 script {
+                     waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token' 
+                 }
+             } 
+         }
+         stage('Install Dependencies') {
+             steps {
+                 sh "npm install"
+             }
+         }
+         stage('TRIVY FS SCAN') {
+             steps {
+                 sh "trivy fs . > trivyfs.txt"
+             }
+         }
+         stage("Docker Build & Push"){
+             steps{
+                 script{
+                    withDockerRegistry(credentialsId: 'docker-token', toolName: 'docker'){   
+                        sh "docker build -t swiggy-clone ."
+                        sh "docker tag swiggy-clone abhise203/swiggy-clone:latest "
+                        sh "docker push abhise203/swiggy-clone:latest "
+                     }
+                 }
+             }
+         }
+         stage("TRIVY"){
+             steps{
+                 sh "trivy image abhise203/swiggy-clone:latest > trivyimage.txt" 
+             }
+         }
+         stage('Deploy to Kubernets'){
+             steps{
+                 script{
+                     dir('Kubernetes') {
+                         withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'kubernetes', namespace: '', restrictKubeConfigAccess: false, serverUrl: '') {
+                         sh 'kubectl delete --all pods'
+                         sh 'kubectl apply -f deployment.yml'
+                         sh 'kubectl apply -f service.yml'
+                         }   
+                     }
+                 }
+             }
+         }
+     }
+ }
+ }
+ }
