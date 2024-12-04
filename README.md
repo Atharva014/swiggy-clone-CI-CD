@@ -1,8 +1,6 @@
-Deploying the Swiggy clone app with Terraform, Kubernetes, and Jenkins CICD.
-Test200
-
 Script to install Jenkins, Docker, Sonarqube, and trivy
 
+```bash
 #!/bin/bash
 sudo apt update -y
 wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc
@@ -33,8 +31,4 @@ echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.
 sudo apt-get update
 sudo apt-get install trivy -y
 
-
-
-
-
-
+```
